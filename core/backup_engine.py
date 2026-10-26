@@ -394,6 +394,68 @@ class BackupEngine(QObject):
                 pass
 
             self.multivolume.mark_volume_complete(written_total)
+
+            # Optional read-after-write verification
+            verify_ok = True
+            if job.verify and not self._cancel.is_set():
+                self.status.emit("Verifying written data...")
+                self.logger.info("Starting read-after-write verification")
+                try:
+                    self.controller.rewind()
+                    raw = open(self.controller.device, "rb", buffering=0)
+                    try:
+                        raw.seek(0)
+                    except Exception:
+                        pass
+                    # skip unkomprimierte Preamble
+                    try:
+                        raw.readline()
+                    except Exception:
+                        pass
+                    stream = self.compression_engine.wrap_reader(raw, job.compression)
+                    from .archive_format import iter_records
+                    parts_map = {}
+                    file_meta = {}
+                    for rtype, meta, data in iter_records(stream):
+                        if rtype in ("FILE", "FILEPART"):
+                            p = meta["path"]
+                            file_meta[p] = meta
+                            parts_map.setdefault(p, []).append((meta.get("part", 0), data, meta))
+                    # verify hashes
+                    for path, parts in parts_map.items():
+                        if self._cancel.is_set():
+                            break
+                        ordered = sorted(parts, key=lambda x: x[0])
+                        import hashlib as _hl
+                        h = _hl.new(job.checksum.value)
+                        expected = ""
+                        for _pi, data, meta in ordered:
+                            if meta.get("encrypted"):
+                                from .encryption import decrypt_bytes
+                                try:
+                                    data = decrypt_bytes(data, job.passphrase)
+                                except Exception as exc:
+                                    self.logger.error(f"verify decrypt failed {path}: {exc}")
+                                    verify_ok = False
+                                    break
+                            h.update(data)
+                            if meta.get("sha256"):
+                                expected = meta["sha256"]
+                        if expected:
+                            if h.hexdigest().lower() != expected.lower():
+                                self.logger.error(f"verify mismatch: {path}")
+                                verify_ok = False
+                            else:
+                                self.logger.info(f"verified: {path}")
+                    try:
+                        raw.close()
+                    except Exception:
+                        pass
+                    stream.close()
+                except Exception as exc:
+                    self.logger.error(f"verification failed: {exc}")
+                    verify_ok = False
+
             try:
                 self.controller.rewind()
             except Exception:
@@ -405,11 +467,12 @@ class BackupEngine(QObject):
                 self.status.emit("Cancelled")
                 self.finished.emit(False, msg)
             else:
-                msg = f"Backup completed: {len(entries)} files, {written_total} bytes in {elapsed:.1f}s"
+                vmsg = " (verified)" if (job.verify and verify_ok) else (" (VERIFY FAILED)" if (job.verify and not verify_ok) else "")
+                msg = f"Backup completed: {len(entries)} files, {written_total} bytes in {elapsed:.1f}s{vmsg}"
                 self.logger.info(msg)
-                self.status.emit("Completed")
+                self.status.emit("Completed" if verify_ok else "Completed (verify failed)")
                 self.progress.emit(1.0)
-                self.finished.emit(True, msg)
+                self.finished.emit(verify_ok if job.verify else True, msg)
         except Exception as exc:
             self.logger.error(f"Backup failed: {exc}")
             self.status.emit(f"Failed: {exc}")
