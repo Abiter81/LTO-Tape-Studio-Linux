@@ -1,0 +1,5 @@
+PySide6>=6.5
+pyudev>=0.24
+psutil>=5.9
+zstandard>=0.21
+cryptography>=42
