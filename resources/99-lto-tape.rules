@@ -1,0 +1,13 @@
+# Enterprise udev rules for LTO tape drives
+# Persistently map tape drives and grant group 'tape' access.
+
+# SCSI tape devices
+KERNEL=="st[0-9]*", SUBSYSTEM=="scsi_tape", GROUP="tape", MODE="0660", SYMLINK+="tape%n"
+KERNEL=="nst[0-9]*", SUBSYSTEM=="scsi_tape", GROUP="tape", MODE="0660", SYMLINK+="ntape%n"
+
+# SCSI generic devices used for low-level inquiry
+KERNEL=="sg[0-9]*", SUBSYSTEM=="scsi_generic", GROUP="tape", MODE="0660"
+
+# Trigger udev reload:
+#   sudo udevadm control --reload-rules
+#   sudo udevadm trigger
