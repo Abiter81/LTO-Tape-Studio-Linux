@@ -4,6 +4,10 @@
 
 Enterprise Linux desktop application for controlling and archiving to LTO tape drives (LTO-1 .. LTO-10).
 
+## Dokumentation
+
+Ausführliche Anleitung unter [`docs/`](docs/README.md).
+
 ## System prerequisites
 
 - `mt-st` (`mt`)
