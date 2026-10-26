@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=LTO Tape Studio
+Comment=Enterprise LTO tape management and archiving
+X-Developer=Jörg Althaus
+X-Publisher=Jörg Althaus
+Exec=lto_tape_studio
+Icon=lto_tape_studio
+Categories=System;Archiving;
+Terminal=false
+StartupNotify=true
