@@ -1,2 +1,8 @@
 __pycache__/
 *.pyc
+*.pyo
+build/
+build_appimage/
+dist/
+*.AppImage
+*.spec

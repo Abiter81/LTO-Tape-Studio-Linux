@@ -42,3 +42,9 @@ sudo udevadm control --reload-rules
 sudo udevadm trigger
 sudo usermod -aG tape $USER
 ```
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2026 Jörg Althaus
