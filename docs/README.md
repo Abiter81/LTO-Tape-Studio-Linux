@@ -16,8 +16,8 @@ Willkommen zur Dokumentation von **LTO Tape Studio**, der Enterprise-Desktop-Anw
 ## Schnellstart
 
 ```bash
-git clone https://github.com/Abiter81/lto_tape_studio.git
-cd lto_tape_studio
+git clone https://github.com/Abiter81/LTO-Tape-Studio-Linux.git
+cd LTO-Tape-Studio-Linux
 pip install -r requirements.txt
 python main.py
 ```
