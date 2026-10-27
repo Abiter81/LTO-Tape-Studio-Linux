@@ -48,7 +48,7 @@ pyinstaller --noconfirm --clean --name "${APP_ID}" \
   main.py
 
 echo "==> Assembling AppDir"
-mkdir -p "${APPDIR}/usr/bin" "${APPDIR}/usr/share/applications" \
+mkdir -p "${APPDIR}/usr/bin" "${APPDIR}/usr/lib" "${APPDIR}/usr/share/applications" \
   "${APPDIR}/usr/share/icons/hicolor/256x256/apps" "${APPDIR}/usr/share/metainfo"
 cp -r "${DIST_DIR}/${APP_ID}/." "${APPDIR}/usr/bin/"
 cp "${ROOT_DIR}/resources/lto_tape_studio.desktop" "${APPDIR}/usr/share/applications/${APP_ID}.desktop"
@@ -58,25 +58,51 @@ if [ -f "${ROOT_DIR}/resources/icon.png" ]; then
   cp "${ROOT_DIR}/resources/icon.png" "${APPDIR}/${APP_ID}.png"
 fi
 
-# Embed author credit into AppImage metadata
-cat > "${APPDIR}/usr/share/metainfo/${APP_ID}.appdata.xml" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<component type="desktop-application">
-  <id>${APP_ID}</id>
-  <name>LTO Tape Studio</name>
-  <summary>Enterprise LTO tape management and archiving</summary>
-  <developer_name>${AUTHOR}</developer_name>
-  <metadata_license>MIT</metadata_license>
-  <project_license>MIT</project_license>
-  <url type="homepage">https://github.com/Abiter81/lto_tape_studio</url>
-</component>
-EOF
+# --------------------------------------------------------------------------- #
+# Bundle external system binaries (mt, sg3-utils) for a self-contained AppImage
+# --------------------------------------------------------------------------- #
+echo "==> Bundling external binaries"
+EXTERNAL_BINS="mt sg_inq sg_logs sg_modes"
+for bin in ${EXTERNAL_BINS}; do
+  src="$(command -v ${bin} 2>/dev/null || true)"
+  if [ -z "${src}" ]; then
+    echo "WARNING: ${bin} not found on host; skipping"
+    continue
+  fi
+  # Resolve symlink (mt -> mt-st)
+  real="$(readlink -f "${src}")"
+  cp "${real}" "${APPDIR}/usr/bin/$(basename ${bin})"
+  chmod +x "${APPDIR}/usr/bin/$(basename ${bin})"
+  echo "   bundled ${bin} -> ${APPDIR}/usr/bin/$(basename ${bin})"
+  # Copy shared libraries reported by ldd
+  if command -v ldd >/dev/null 2>&1; then
+    ldd "${real}" 2>/dev/null | grep -oE '/[^ ]+' | while read -r lib; do
+      if [ -f "${lib}" ]; then
+        cp -n "${lib}" "${APPDIR}/usr/lib/" 2>/dev/null || true
+      fi
+    done
+  fi
+done
+# Also bundle mt-st itself (target of mt symlink) if present
+if [ -f /usr/bin/mt-st ]; then
+  cp /usr/bin/mt-st "${APPDIR}/usr/bin/mt-st"
+  chmod +x "${APPDIR}/usr/bin/mt-st"
+fi
+
+# Embed author credit into AppImage metadata (skipped to avoid appstreamcli validation issues)
+# Author credit is preserved in main.py (__author__) and the .desktop file (X-Developer).
+rm -rf "${APPDIR}/usr/share/metainfo"
 
 cat > "${APPDIR}/AppRun" <<'EOF'
 #!/bin/sh
 HERE="$(dirname "$(readlink -f "${0}")")"
+# Self-contained: prefer bundled binaries and libraries
 export PATH="${HERE}/usr/bin:${PATH}"
 export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"
+# Ensure mt finds mt-st
+if [ -x "${HERE}/usr/bin/mt-st" ] && [ ! -x "${HERE}/usr/bin/mt" ]; then
+  ln -sf mt-st "${HERE}/usr/bin/mt" 2>/dev/null || true
+fi
 exec "${HERE}/usr/bin/lto_tape_studio" "$@"
 EOF
 chmod +x "${APPDIR}/AppRun"
