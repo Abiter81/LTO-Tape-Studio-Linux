@@ -6,7 +6,7 @@ Enterprise Linux desktop application for controlling and archiving to LTO tape d
 
 ## Dokumentation
 
-Ausführliche Anleitung unter [`docs/`](docs/README.md).
+Ausführliche Anleitung unter [`docs/`](docs/README.md) (Deutsch) bzw. [`docs/en/`](docs/en/README.md) (English).
 
 ## System prerequisites
 

@@ -1,3 +1,4 @@
 LTO Tape Studio
 Programmed by Jörg Althaus
 Enterprise LTO tape management and archiving for Linux.
+Enterprise LTO-Bandverwaltung und -Archivierung für Linux.
